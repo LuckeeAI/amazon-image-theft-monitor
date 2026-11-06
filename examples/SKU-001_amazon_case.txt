@@ -5,7 +5,7 @@ Subject: ASIN B0EXAMPLE1 - Buy Box suppressed due to unauthorized listings using
 
 Hello Seller Support,
 
-Our ASIN B0EXAMPLE1 (Acme Outdoor Patio Misting System 40ft) lost the Featured Offer. We believe Amazon's price competitiveness check matched our product to external listings on Temu, eBay and independent websites that copied our product photos and show a lower price. These listings are not authorized sellers of our product and are not a comparable offer.
+[CONFIRM] Our ASIN B0EXAMPLE1 (Acme Outdoor Patio Misting System 40ft) lost the Featured Offer. We believe Amazon's price competitiveness check matched our product to external listings on Temu, eBay and independent websites that copied our product photos and show a lower price. These listings are not authorized sellers of our product and are not a comparable offer.
 
 Unauthorized listings:
 1. Infringing page: https://www.temu.com/goods.html?goods_id=601099512345678

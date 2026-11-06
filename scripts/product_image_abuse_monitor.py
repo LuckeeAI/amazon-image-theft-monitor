@@ -15,7 +15,7 @@ from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable
-from urllib.parse import urlparse, urlunparse
+from urllib.parse import urljoin, urlparse, urlunparse
 from collections import Counter
 
 import imagehash
@@ -58,6 +58,7 @@ class Candidate:
     query: str = ""
     title: str | None = None
     snippet: str | None = None
+    page_fetch_error: str | None = None
 
 
 @dataclass
@@ -118,6 +119,21 @@ def env_value(name: str | None, default: str | None = None) -> str | None:
     return os.getenv(name, default)
 
 
+def _make_tldextractor() -> tldextract.TLDExtract:
+    cache_dir = Path(os.getenv("TLDEXTRACT_CACHE") or (Path.home() / ".cache" / "python-tldextract"))
+    try:
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        probe = cache_dir / ".write-test"
+        probe.write_text("", encoding="utf-8")
+        probe.unlink()
+    except (OSError, PermissionError):
+        return tldextract.TLDExtract(cache_dir=None, suffix_list_urls=())
+    return tldextract.TLDExtract(cache_dir=str(cache_dir))
+
+
+_TLD_EXTRACTOR = _make_tldextractor()
+
+
 def normalize_url(url: str) -> str:
     if not url:
         return ""
@@ -134,21 +150,28 @@ def registered_domain(url_or_domain: str) -> str:
         return ""
     if "://" not in raw:
         raw = "https://" + raw
-    host = urlparse(raw).netloc or raw
-    ext = tldextract.extract(host)
+    host = urlparse(raw).hostname or raw.split("/", 1)[0]
+    ext = _TLD_EXTRACTOR(host)
     if not ext.domain or not ext.suffix:
         return host.lower()
     return f"{ext.domain}.{ext.suffix}".lower()
 
 
 def source_domain(url: str) -> str:
-    return registered_domain(url)
+    raw = (url or "").strip()
+    if not raw:
+        return ""
+    if "://" not in raw:
+        raw = "https://" + raw
+    host = urlparse(raw).hostname or raw.split("/", 1)[0]
+    host = host.lower()
+    return re.sub(r"^www\.", "", host, count=1)
 
 
 def domain_matches(domain: str, patterns: Iterable[str]) -> bool:
-    d = registered_domain(domain)
+    d = source_domain(domain)
     for p in patterns:
-        rp = registered_domain(p)
+        rp = source_domain(p)
         if rp and (d == rp or d.endswith("." + rp)):
             return True
     return False
@@ -896,7 +919,7 @@ def _platform_notice(platform: str, product: Product, rows: list[dict[str, Any]]
         "To whom it may concern,\n\n"
         f"I am the copyright owner (or authorized agent of the owner) of the original product photographs for {product.brand or '[BRAND]'} "
         f"{product.product_name or '[PRODUCT NAME]'}. The listings below use these photographs without permission. "
-        "The original images are published on our Amazon listing above and were created by us.\n\n"
+        "[CONFIRM] The original images are published on our Amazon listing above and were created by us.\n\n"
         "Infringing listings:\n"
         f"{_evidence_lines(rows)}\n\n"
         "I request that these listings or images be removed.\n\n"
@@ -916,7 +939,7 @@ def _amazon_case(product: Product, rows: list[dict[str, Any]], platforms: list[s
         "Open via: Seller Central > Help > Get support > Selling on Amazon > Pricing > Featured Offer / Buy Box\n\n"
         f"Subject: ASIN {asin} - Buy Box suppressed due to unauthorized listings using our copyrighted images\n\n"
         "Hello Seller Support,\n\n"
-        f"Our ASIN {asin} ({product.brand or '[BRAND]'} {product.product_name or '[PRODUCT NAME]'}) lost the Featured Offer. "
+        f"[CONFIRM] Our ASIN {asin} ({product.brand or '[BRAND]'} {product.product_name or '[PRODUCT NAME]'}) lost the Featured Offer. "
         f"We believe Amazon's price competitiveness check matched our product to external listings on {names} "
         "that copied our product photos and show a lower price. These listings are not authorized sellers of our product "
         "and are not a comparable offer.\n\n"
@@ -956,25 +979,43 @@ def generate_complaints(cfg: dict[str, Any], products: list[Product]) -> int:
     if not written:
         print("[COMPLAINTS] No probable_abuse findings in the evidence log. Nothing to draft.")
     else:
-        print("[COMPLAINTS] Drafts only. Review, fill in the [BRACKETS], attach screenshots, then submit yourself.")
+        print("[COMPLAINTS] Drafts only. Confirm or delete every [CONFIRM] line, fill in the [BRACKETS], attach screenshots, then submit yourself.")
     return written
 
 
-def _og_image(page_url: str, cfg: dict[str, Any]) -> str:
+def _og_image(page_url: str, cfg: dict[str, Any]) -> tuple[str, str | None]:
     """Best-effort lookup of a page's main image (og:image) when the CSV has no image URL."""
     headers = {"User-Agent": cfg.get("search", {}).get("user_agent", "Mozilla/5.0")}
     try:
-        html = requests.get(page_url, headers=headers, timeout=int(cfg.get("search", {}).get("download_timeout_seconds", 20))).text
-    except Exception:
-        return ""
+        response = requests.get(
+            page_url,
+            headers=headers,
+            timeout=int(cfg.get("search", {}).get("download_timeout_seconds", 20)),
+            allow_redirects=True,
+        )
+    except requests.exceptions.SSLError:
+        return "", "tls_error"
+    except requests.exceptions.Timeout:
+        return "", "timeout"
+    except requests.exceptions.RequestException:
+        return "", "request_error"
+    final_url = getattr(response, "url", None) or page_url
+    final_lower = final_url.lower()
+    final_path = urlparse(final_url).path.lower()
+    if "/blocked" in final_path or "captcha" in final_lower:
+        return "", "blocked_redirect"
+    status_code = int(getattr(response, "status_code", 0) or 0)
+    if status_code >= 400:
+        return "", f"http_{status_code}"
+    html = getattr(response, "text", "")
     for pattern in (
         r'<meta[^>]+property=["\']og:image["\'][^>]+content=["\']([^"\']+)',
         r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+property=["\']og:image',
     ):
         m = re.search(pattern, html, re.I)
         if m:
-            return m.group(1)
-    return ""
+            return urljoin(final_url, m.group(1)), None
+    return "", "no_og_image"
 
 
 def load_manual_candidates(path: str | Path, products: list[Product], cfg: dict[str, Any]) -> dict[str, list[Candidate]]:
@@ -995,10 +1036,14 @@ def load_manual_candidates(path: str | Path, products: list[Product], cfg: dict[
             if pid not in by_product:
                 print(f"[WARN] {path} line {line_no}: unknown or missing product_id '{pid}', skipped", file=sys.stderr)
                 continue
+            page_fetch_error = None
             if not image_url and page_url:
-                image_url = _og_image(page_url, cfg)
-                if not image_url:
-                    print(f"[WARN] {path} line {line_no}: no image_url and no og:image found on {page_url}", file=sys.stderr)
+                _, policy_reason = domain_policy(page_url, cfg)
+                if policy_reason == "keep":
+                    image_url, page_fetch_error = _og_image(page_url, cfg)
+                if not image_url and policy_reason == "keep":
+                    detail = page_fetch_error or "no_og_image"
+                    print(f"[WARN] {path} line {line_no}: page fetch failed ({detail}) on {page_url}", file=sys.stderr)
             by_product[pid].append(
                 Candidate(
                     candidate_image_url=normalize_url(image_url) if image_url else "",
@@ -1010,6 +1055,7 @@ def load_manual_candidates(path: str | Path, products: list[Product], cfg: dict[
                     discovery_method="manual",
                     query=f"manual:{path}",
                     title=row.get("note") or None,
+                    page_fetch_error=page_fetch_error,
                 )
             )
     return by_product
@@ -1131,10 +1177,15 @@ def process_product(
                 warehouse_relevance=None,
                 matched_asset=None,
                 decision="needs_review",
-                reason="image_download_failed" if candidate.candidate_image_url else "no_image_url",
+                reason=(
+                    f"page_fetch_failed:{candidate.page_fetch_error}"
+                    if candidate.page_fetch_error
+                    else ("image_download_failed" if candidate.candidate_image_url else "no_image_url")
+                ),
                 local_image_path=None,
             )
             rows.append(evidence)
+            append_jsonl(Path(cfg.get("output", {}).get("report_jsonl", "evidence/report.jsonl")), evidence)
             print(f"[RESULT] needs_review product={product.product_id} domain={candidate.source_domain} reason={evidence.reason}")
             continue
         phash_dist = min_hash_distance(local_path, phashes, "phash")

@@ -1,6 +1,6 @@
 ---
 name: amazon-image-theft-monitor
-version: 2.4.0
+version: 2.4.1
 license: MIT
 description: "Find listings on Temu, eBay, Walmart, TikTok Shop and independent websites that reuse an Amazon seller's product photos, collect evidence, and draft complaint letters plus an Amazon Buy Box (Featured Offer) case. Uses Google Cloud Vision Web Detection for reverse-image discovery, local pHash/dHash checks, and optional Vertex AI Vision Warehouse validation. Use when a seller mentions a lost or suppressed Buy Box, price matching to a cheaper external listing, stolen product images, image theft on Temu/eBay/TikTok/Walmart, or asks to monitor or report unauthorized use of their product photos. Also trigger for 产品盗图、盗图监控、购物车丢失、亚马逊丢购物车、Temu侵权、eBay盗图、以图搜图采集链接、抢购物车申诉."
 metadata:
@@ -59,7 +59,7 @@ python scripts/product_image_abuse_monitor.py \
   --config monitor_config.yaml --products products.yaml --candidates-file links.csv
 ```
 
-Manual links are judged on local image similarity only: high → `probable_abuse`, anything else → `needs_review`. Links whose image could not be downloaded also land in `needs_review` (reason `image_download_failed` or `no_image_url`) so the seller can check them by hand.
+Manual links are judged on local image similarity only: high → `probable_abuse`, anything else → `needs_review`. Links whose image could not be downloaded also land in `needs_review` (reason `image_download_failed`, `no_image_url`, or `page_fetch_failed:<why>` such as `http_403` or `blocked_redirect`) so the seller can check them by hand.
 
 ### Step 3 — Dry run first
 
