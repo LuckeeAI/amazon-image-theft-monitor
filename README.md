@@ -4,7 +4,7 @@ Find the Temu, eBay, Walmart, TikTok Shop and independent-store listings that co
 
 **English** · [简体中文](README.zh-CN.md)
 
-![License: PolyForm Noncommercial](https://img.shields.io/badge/license-PolyForm%20Noncommercial-15803d) ![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-1f2937) ![Claude Code skill](https://img.shields.io/badge/Claude%20Code-skill-0e7490)
+![License: MIT](https://img.shields.io/badge/license-MIT-15803d) ![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-1f2937) ![Claude Code skill](https://img.shields.io/badge/Claude%20Code-skill-0e7490)
 
 Works as a plain Python CLI or as a skill for Claude Code and other agents that read `SKILL.md`. Built by an Amazon seller for their own catalog, shared by [Luckee](https://luckee.ai/?utm_source=github&utm_medium=readme&utm_campaign=amazon-image-theft-monitor&utm_content=intro).
 
@@ -138,9 +138,4 @@ Yes, optional: `--feishu-sync` writes findings to a Feishu Base table. See [SKIL
 
 Built and maintained by [Luckee](https://luckee.ai/?utm_source=github&utm_medium=readme&utm_campaign=amazon-image-theft-monitor&utm_content=credits).
 
-Free for personal, research and other noncommercial use under the [PolyForm Noncommercial License 1.0.0](LICENSE).
-Commercial use, for example running it for clients or inside a paid product or service, needs a license from Luckee:
-contact us via [luckee.ai](https://luckee.ai/?utm_source=github&utm_medium=readme&utm_campaign=amazon-image-theft-monitor&utm_content=license).
-Versions up to v2.4.1 were published under the MIT License and stay available under MIT.
-
-Not affiliated with Amazon, Temu, eBay, Walmart, TikTok or Google.
+Code under the [MIT License](LICENSE). Not affiliated with Amazon, Temu, eBay, Walmart, TikTok or Google.

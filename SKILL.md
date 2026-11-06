@@ -1,7 +1,7 @@
 ---
 name: amazon-image-theft-monitor
-version: 2.5.0
-license: PolyForm-Noncommercial-1.0.0
+version: 2.4.1
+license: MIT
 description: "Find listings on Temu, eBay, Walmart, TikTok Shop and independent websites that reuse an Amazon seller's product photos, collect evidence, and draft complaint letters plus an Amazon Buy Box (Featured Offer) case. Uses Google Cloud Vision Web Detection for reverse-image discovery, local pHash/dHash checks, and optional Vertex AI Vision Warehouse validation. Use when a seller mentions a lost or suppressed Buy Box, price matching to a cheaper external listing, stolen product images, image theft on Temu/eBay/TikTok/Walmart, or asks to monitor or report unauthorized use of their product photos. Also trigger for 产品盗图、盗图监控、购物车丢失、亚马逊丢购物车、Temu侵权、eBay盗图、以图搜图采集链接、抢购物车申诉."
 metadata:
   short-description: "Find stolen Amazon product images on other marketplaces, collect evidence, draft takedown notices and a Buy Box case"
