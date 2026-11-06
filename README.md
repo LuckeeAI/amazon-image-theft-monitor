@@ -32,7 +32,7 @@ It never submits anything for you. You review the drafts and file them yourself.
 
 ## Quick start
 
-You need Python 3.10+ and a Google Cloud service account with the Cloud Vision API enabled ([setup guide](docs/google-cloud-setup.md)).
+You need Python 3.10+. For automatic discovery you also need a Google Cloud service account with the Cloud Vision API enabled ([setup guide](docs/google-cloud-setup.md)). No Google Cloud? See [Paste your own links](#no-google-cloud-paste-your-own-links).
 
 ```bash
 git clone https://github.com/LuckeeAI/amazon-image-theft-monitor.git
@@ -55,6 +55,23 @@ python scripts/product_image_abuse_monitor.py --config monitor_config.yaml --pro
 # 3. Draft complaints for every probable match
 python scripts/product_image_abuse_monitor.py --config monitor_config.yaml --products products.yaml --generate-complaints
 ```
+
+### No Google Cloud? Paste your own links
+
+Search your main photo yourself with [Google Lens](https://lens.google.com), Bing Visual Search or TinEye, then list the suspicious results in a CSV (`templates/candidates.csv` shows the format):
+
+```csv
+product_id,page_url,image_url,note
+SKU-001,https://www.temu.com/goods.html?goods_id=...,https://img.kwcdn.com/...jpg,found with Google Lens
+SKU-001,https://www.ebay.com/itm/...,,leave image_url empty and the tool tries the page's main image
+```
+
+```bash
+python scripts/product_image_abuse_monitor.py --config monitor_config.yaml --products products.yaml --candidates-file links.csv
+python scripts/product_image_abuse_monitor.py --config monitor_config.yaml --products products.yaml --generate-complaints
+```
+
+The tool downloads each image, compares it with your originals, sorts the links into probable matches and ones to check by hand, and drafts the complaints. No Google account or API key is needed.
 
 ### Use it as a Claude Code skill
 

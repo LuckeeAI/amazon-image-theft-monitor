@@ -1,6 +1,6 @@
 ---
 name: amazon-image-theft-monitor
-version: 2.3.1
+version: 2.4.0
 license: MIT
 description: "Find listings on Temu, eBay, Walmart, TikTok Shop and independent websites that reuse an Amazon seller's product photos, collect evidence, and draft complaint letters plus an Amazon Buy Box (Featured Offer) case. Uses Google Cloud Vision Web Detection for reverse-image discovery, local pHash/dHash checks, and optional Vertex AI Vision Warehouse validation. Use when a seller mentions a lost or suppressed Buy Box, price matching to a cheaper external listing, stolen product images, image theft on Temu/eBay/TikTok/Walmart, or asks to monitor or report unauthorized use of their product photos. Also trigger for 产品盗图、盗图监控、购物车丢失、亚马逊丢购物车、Temu侵权、eBay盗图、以图搜图采集链接、抢购物车申诉."
 metadata:
@@ -36,7 +36,7 @@ Ask the seller:
 - Which products to monitor (brand, product name, SKU, ASIN)
 - Where their original product images are saved locally
 - Whether the Buy Box is already lost, or this is preventive monitoring
-- Whether they already have a Google Cloud project with the Cloud Vision API enabled
+- Whether they already have a Google Cloud project with the Cloud Vision API enabled. If not, they can still use the tool: search the main photo with Google Lens, Bing Visual Search or TinEye, put the suspicious links in a CSV (`templates/candidates.csv`), and run with `--candidates-file`. Skip the Google Cloud prerequisites and the dry run in that case.
 
 If `products.yaml` and `monitor_config.yaml` exist in the working directory, read them. If not, copy them from `templates/` and fill them in with the seller.
 
@@ -51,6 +51,15 @@ If `products.yaml` and `monitor_config.yaml` exist in the working directory, rea
 Full Google Cloud setup: `docs/google-cloud-setup.md`.
 
 Never print service account JSON, private keys, API keys or access tokens.
+
+Without Google Cloud, run on hand-collected links instead (columns `product_id`, `page_url`, `image_url`, `note`; `image_url` may be empty, then the page's og:image is tried):
+
+```bash
+python scripts/product_image_abuse_monitor.py \
+  --config monitor_config.yaml --products products.yaml --candidates-file links.csv
+```
+
+Manual links are judged on local image similarity only: high → `probable_abuse`, anything else → `needs_review`. Links whose image could not be downloaded also land in `needs_review` (reason `image_download_failed` or `no_image_url`) so the seller can check them by hand.
 
 ### Step 3 — Dry run first
 

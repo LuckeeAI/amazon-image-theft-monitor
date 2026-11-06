@@ -32,7 +32,7 @@
 
 ## 快速开始
 
-需要 Python 3.10+，以及一个开通了 Cloud Vision API 的 Google Cloud 服务账号（见[配置指南](docs/google-cloud-setup.md)）。
+需要 Python 3.10+。自动以图搜图还需要一个开通了 Cloud Vision API 的 Google Cloud 服务账号（见[配置指南](docs/google-cloud-setup.md)）。没有 Google Cloud？见[自己粘贴链接](#没有-google-cloud自己粘贴链接)。
 
 ```bash
 git clone https://github.com/LuckeeAI/amazon-image-theft-monitor.git
@@ -55,6 +55,23 @@ python scripts/product_image_abuse_monitor.py --config monitor_config.yaml --pro
 # 3. 为高度疑似盗图的链接生成投诉草稿
 python scripts/product_image_abuse_monitor.py --config monitor_config.yaml --products products.yaml --generate-complaints
 ```
+
+### 没有 Google Cloud？自己粘贴链接
+
+用 [Google Lens](https://lens.google.com)、Bing 图片搜索或 TinEye 搜一下你的主图，把可疑结果填进一个 CSV（格式见 `templates/candidates.csv`）：
+
+```csv
+product_id,page_url,image_url,note
+SKU-001,https://www.temu.com/goods.html?goods_id=...,https://img.kwcdn.com/...jpg,Google Lens 找到
+SKU-001,https://www.ebay.com/itm/...,,image_url 可以留空，工具会尝试抓取页面主图
+```
+
+```bash
+python scripts/product_image_abuse_monitor.py --config monitor_config.yaml --products products.yaml --candidates-file links.csv
+python scripts/product_image_abuse_monitor.py --config monitor_config.yaml --products products.yaml --generate-complaints
+```
+
+工具会下载每张图片、和你的原图比对，把链接分成"高度疑似"和"需要人工确认"两类，再生成投诉草稿。不需要 Google 账号或 API key。
 
 ### 作为 Claude Code skill 使用
 

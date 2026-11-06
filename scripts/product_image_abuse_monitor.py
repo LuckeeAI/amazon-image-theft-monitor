@@ -485,7 +485,14 @@ def local_similarity_decision(phash_distance: int | None, dhash_distance: int | 
     p_review = int(val.get("phash_max_distance_review", 14))
     d_strict = int(val.get("dhash_max_distance_strict", 8))
     d_review = int(val.get("dhash_max_distance_review", 14))
-    if (phash_distance is not None and phash_distance <= p_strict) or (dhash_distance is not None and dhash_distance <= d_strict):
+    # "high" needs one hash within the strict limit while the other does not contradict it
+    # (missing, or within the review limit). One close hash alone is too weak: unrelated
+    # product shots on plain backgrounds often share a dHash but not a pHash.
+    p_ok_review = phash_distance is None or phash_distance <= p_review
+    d_ok_review = dhash_distance is None or dhash_distance <= d_review
+    if (phash_distance is not None and phash_distance <= p_strict and d_ok_review) or (
+        dhash_distance is not None and dhash_distance <= d_strict and p_ok_review
+    ):
         return "high"
     if (phash_distance is not None and phash_distance <= p_review) or (dhash_distance is not None and dhash_distance <= d_review):
         return "medium"
@@ -553,6 +560,10 @@ def decide(
         return "needs_review", ";".join([f"possible_warehouse_match_score={warehouse_score:.4f}", *reasons])
     if warehouse_score is not None and warehouse_score < review_score and local_decision == "low":
         return "not_match", ";".join(["warehouse_low_similarity_and_local_low", *reasons])
+    if candidate.match_type == "manual":
+        if local_decision == "high":
+            return "probable_abuse", ";".join(["manual_link_local_high", *reasons])
+        return "needs_review", ";".join([f"manual_link_local_{local_decision}", *reasons])
     if candidate.match_type == "custom_search" and local_decision in {"high", "medium"}:
         return "probable_abuse" if local_decision == "high" else "needs_review", ";".join([f"custom_search_local_{local_decision}", *reasons])
     return "needs_review", ";".join(["insufficient_evidence_fail_soft", *reasons])
@@ -949,6 +960,61 @@ def generate_complaints(cfg: dict[str, Any], products: list[Product]) -> int:
     return written
 
 
+def _og_image(page_url: str, cfg: dict[str, Any]) -> str:
+    """Best-effort lookup of a page's main image (og:image) when the CSV has no image URL."""
+    headers = {"User-Agent": cfg.get("search", {}).get("user_agent", "Mozilla/5.0")}
+    try:
+        html = requests.get(page_url, headers=headers, timeout=int(cfg.get("search", {}).get("download_timeout_seconds", 20))).text
+    except Exception:
+        return ""
+    for pattern in (
+        r'<meta[^>]+property=["\']og:image["\'][^>]+content=["\']([^"\']+)',
+        r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+property=["\']og:image',
+    ):
+        m = re.search(pattern, html, re.I)
+        if m:
+            return m.group(1)
+    return ""
+
+
+def load_manual_candidates(path: str | Path, products: list[Product], cfg: dict[str, Any]) -> dict[str, list[Candidate]]:
+    """Read links a person found with Google Lens, Bing or TinEye.
+
+    Columns: page_url (required), image_url (optional, recommended), product_id
+    (optional when there is only one product).
+    """
+    by_product: dict[str, list[Candidate]] = {p.product_id: [] for p in products}
+    with open(path, newline="", encoding="utf-8-sig") as f:
+        for line_no, row in enumerate(csv.DictReader(f), start=2):
+            row = {(k or "").strip().lower(): (v or "").strip() for k, v in row.items()}
+            page_url = row.get("page_url", "")
+            image_url = row.get("image_url", "")
+            if not page_url and not image_url:
+                continue
+            pid = row.get("product_id", "") or (products[0].product_id if len(products) == 1 else "")
+            if pid not in by_product:
+                print(f"[WARN] {path} line {line_no}: unknown or missing product_id '{pid}', skipped", file=sys.stderr)
+                continue
+            if not image_url and page_url:
+                image_url = _og_image(page_url, cfg)
+                if not image_url:
+                    print(f"[WARN] {path} line {line_no}: no image_url and no og:image found on {page_url}", file=sys.stderr)
+            by_product[pid].append(
+                Candidate(
+                    candidate_image_url=normalize_url(image_url) if image_url else "",
+                    source_page_url=normalize_url(page_url) if page_url else "",
+                    source_domain=source_domain(page_url or image_url),
+                    match_type="manual",
+                    score=None,
+                    product_id=pid,
+                    discovery_method="manual",
+                    query=f"manual:{path}",
+                    title=row.get("note") or None,
+                )
+            )
+    return by_product
+
+
 def collect_candidates(product: Product, cfg: dict[str, Any], provider: str, reference_gcs_uri: str | None) -> tuple[list[Candidate], list[PageMatch]]:
     search_cfg = cfg.get("search", {})
     all_candidates: list[Candidate] = []
@@ -992,11 +1058,15 @@ def process_product(
     reference_gcs_uri: str | None,
     use_warehouse: bool,
     seen: set[str],
+    manual_candidates: list[Candidate] | None = None,
 ) -> tuple[list[Evidence], list[PageMatch]]:
     rows: list[Evidence] = []
     phashes = reference_hashes(product, "phash")
     dhashes = reference_hashes(product, "dhash")
-    candidates, page_matches = collect_candidates(product, cfg, provider, reference_gcs_uri)
+    if manual_candidates is not None:
+        candidates, page_matches = dedupe_candidates(manual_candidates), []
+    else:
+        candidates, page_matches = collect_candidates(product, cfg, provider, reference_gcs_uri)
     max_validations = int(cfg.get("search", {}).get("max_candidates_for_warehouse_per_product", 20))
     validations_used = 0
     print(f"[INFO] {product.product_id}: discovered {len(candidates)} unique image candidates, {len(page_matches)} page matches")
@@ -1044,9 +1114,28 @@ def process_product(
             seen.add(key)
             continue
 
-        local_path = download_image(candidate, cfg, product)
+        local_path = download_image(candidate, cfg, product) if candidate.candidate_image_url else None
         if not local_path:
-            seen.add(key)
+            # Keep a record so the link can be checked by hand; don't mark it seen, so a later run retries it.
+            evidence = Evidence(
+                timestamp_utc=datetime.now(timezone.utc).isoformat(),
+                product_id=product.product_id,
+                candidate_image_url=candidate.candidate_image_url,
+                source_page_url=candidate.source_page_url,
+                source_domain=candidate.source_domain,
+                match_type=candidate.match_type,
+                web_detection_score=candidate.score,
+                phash_distance=None,
+                dhash_distance=None,
+                local_similarity_decision="unknown",
+                warehouse_relevance=None,
+                matched_asset=None,
+                decision="needs_review",
+                reason="image_download_failed" if candidate.candidate_image_url else "no_image_url",
+                local_image_path=None,
+            )
+            rows.append(evidence)
+            print(f"[RESULT] needs_review product={product.product_id} domain={candidate.source_domain} reason={evidence.reason}")
             continue
         phash_dist = min_hash_distance(local_path, phashes, "phash")
         dhash_dist = min_hash_distance(local_path, dhashes, "dhash")
@@ -1096,6 +1185,11 @@ def main() -> int:
         default=None,
         help="Candidate discovery provider. Defaults to search.discovery_provider or web-detection.",
     )
+    parser.add_argument(
+        "--candidates-file",
+        help="CSV of links you found yourself (Google Lens, Bing, TinEye). Columns: page_url, image_url, product_id. "
+        "Skips Google Cloud discovery entirely.",
+    )
     parser.add_argument("--reference-gcs-uri", help="GCS URI of official reference image for Web Detection, e.g. gs://<YOUR_GCS_BUCKET>/path.jpg")
     parser.add_argument("--no-web-detection", action="store_true", help="Deprecated alias: use --discovery-provider custom-search")
     parser.add_argument("--generate-complaints", action="store_true", help="Read existing evidence JSONL and generate complaint templates for probable_abuse findings")
@@ -1140,9 +1234,13 @@ def main() -> int:
     seen = load_seen_cache(cache_path)
     all_rows: list[Evidence] = []
     all_pages: list[PageMatch] = []
+    manual = load_manual_candidates(args.candidates_file, products, cfg) if args.candidates_file else None
     try:
         for product in products:
-            rows, pages = process_product(product, cfg, args.dry_run, provider, args.reference_gcs_uri, use_warehouse, seen)
+            manual_for_product = manual.get(product.product_id, []) if manual is not None else None
+            rows, pages = process_product(
+                product, cfg, args.dry_run, provider, args.reference_gcs_uri, use_warehouse, seen, manual_for_product
+            )
             all_rows.extend(rows)
             all_pages.extend(pages)
     finally:
