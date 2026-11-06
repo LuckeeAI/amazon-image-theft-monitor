@@ -1,0 +1,20 @@
+products:
+  - product_id: "SKU-001"
+    brand: "Your Brand"
+    product_name: "Your Product Name"
+    sku: "SKU-001"
+    asin: "B0XXXXXXXXX"      # optional: Amazon ASIN for this listing
+    reference_images:
+      # Local images are still used for pHash/dHash validation.
+      # Web Detection can also receive a one-off GCS reference via --reference-gcs-uri.
+      - "images/sku-001-front.jpg"
+      - "images/sku-001-side.jpg"
+
+  # Add more products here.
+  # - product_id: "SKU-002"
+  #   brand: "Your Brand"
+  #   product_name: "Second Product Name"
+  #   sku: "SKU-002"
+  #   asin: "B0YYYYYYYYY"
+  #   reference_images:
+  #     - "images/sku-002-front.jpg"

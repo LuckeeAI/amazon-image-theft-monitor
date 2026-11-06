@@ -1,0 +1,27 @@
+AMAZON SELLER SUPPORT CASE - Featured Offer (Buy Box) suppressed by unauthorized external listings
+Open via: Seller Central > Help > Get support > Selling on Amazon > Pricing > Featured Offer / Buy Box
+
+Subject: ASIN B0EXAMPLE1 - Buy Box suppressed due to unauthorized listings using our copyrighted images
+
+Hello Seller Support,
+
+Our ASIN B0EXAMPLE1 (Acme Outdoor Patio Misting System 40ft) lost the Featured Offer. We believe Amazon's price competitiveness check matched our product to external listings on Temu, eBay and independent websites that copied our product photos and show a lower price. These listings are not authorized sellers of our product and are not a comparable offer.
+
+Unauthorized listings:
+1. Infringing page: https://www.temu.com/goods.html?goods_id=601099512345678
+   Copied image: https://img.kwcdn.com/product/abc123.jpg
+   Match: full_match, pHash distance 2, found 2026-11-02
+2. Infringing page: https://www.ebay.com/itm/356012345678
+   Copied image: https://i.ebayimg.com/images/g/xyz/s-l1600.jpg
+   Match: partial_match, pHash distance 4, found 2026-11-02
+3. Infringing page: https://cheap-garden-deals.shop/products/misting-kit
+   Copied image: https://cdn.shopify.com/s/files/1/0/products/copy.jpg
+   Match: full_match, pHash distance 1, found 2026-11-02
+
+We have filed infringement reports with each platform. Complaint IDs: [ADD COMPLAINT IDS]
+
+Please remove the incorrect external price reference for this ASIN and refresh the Featured Offer eligibility. Screenshots of the infringing listings and our original images are attached.
+
+Thank you,
+[YOUR NAME]
+[SELLER / MERCHANT TOKEN]

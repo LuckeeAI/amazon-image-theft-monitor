@@ -1,0 +1,111 @@
+google:
+  custom_search_api_key_env: GCS_API_KEY
+  custom_search_engine_id_env: GCS_SEARCH_ENGINE_ID
+  # Full resource name of your Vision Warehouse IndexEndpoint, e.g.:
+  # projects/my-project/locations/us-central1/indexEndpoints/1234567890
+  index_endpoint_env: VISION_INDEX_ENDPOINT
+
+search:
+  # Default discovery provider is Cloud Vision Web Detection. This replaces Google
+  # Custom Search JSON API for the normal reverse-image discovery path.
+  # Allowed values: web-detection, custom-search, both
+  discovery_provider: web-detection
+  enable_custom_search: false
+  enable_web_detection: true
+
+  # Google Custom Search JSON API returns max 10 results per request.
+  results_per_query: 10
+
+  # Maximum Google pages per query. 3 pages = up to 30 raw Google results.
+  max_pages_per_query: 3
+
+  # Stop paginating early once this many non-excluded candidates are found for a query.
+  desired_filtered_candidates_per_query: 5
+
+  # Maximum Vision Warehouse search validations per product per run.
+  max_candidates_for_warehouse_per_product: 20
+
+  delay_between_requests_seconds: 1.0
+  download_timeout_seconds: 20
+  user_agent: "Mozilla/5.0 AmazonImageTheftMonitor/2.3"
+
+  queries:
+    - "{brand} {product_name}"
+    - "\"{product_name}\""
+    - "\"{sku}\""
+    - "\"{brand}\" \"{sku}\""
+
+  target_platform_queries:
+    ebay: "site:ebay.com {brand} {product_name}"
+    walmart: "site:walmart.com {brand} {product_name}"
+    temu: "site:temu.com {brand} {product_name}"
+    tiktok: "site:tiktok.com {brand} {product_name}"
+    tiktok_shop: "site:shop.tiktok.com {brand} {product_name}"
+
+  # These become negative query operators, e.g. -site:amazon.com.
+  # Do not place -site:... inside the CSE site-pattern setup page.
+  excluded_query_sites:
+    - amazon.com
+    - amazon.ca
+    - amazon.co.uk
+    - yourbrand.com
+    - yourstore.com
+
+domains:
+  owned_domains:
+    - yourbrand.com
+    - yourstore.com
+
+  authorized_domains:
+    - amazon.com
+    - amazon.ca
+    - amazon.co.uk
+
+  ignored_domains:
+    - google.com
+    - gstatic.com
+    - pinterest.com
+    - pinimg.com
+    - facebook.com
+    - instagram.com
+
+  target_marketplace_domains:
+    ebay:
+      - ebay.com
+      - ebay.co.uk
+      - ebay.ca
+    walmart:
+      - walmart.com
+    temu:
+      - temu.com
+    tiktok:
+      - tiktok.com
+      - shop.tiktok.com
+
+validation:
+  phash_max_distance_strict: 8
+  phash_max_distance_review: 14
+  dhash_max_distance_strict: 8
+  dhash_max_distance_review: 14
+  warehouse_min_score_strict: 0.75
+  warehouse_min_score_review: 0.50
+  validate_unknown_independent_sites: true
+  validate_target_marketplaces: true
+
+output:
+  evidence_dir: evidence
+  report_jsonl: evidence/report.jsonl
+  report_csv: evidence/report.csv
+  probable_abuse_csv: evidence/probable_abuse.csv
+  needs_review_csv: evidence/needs_review.csv
+  page_matches_csv: evidence/page_matches.csv
+  seen_cache: evidence/seen_urls.json
+
+# Optional: sync probable_abuse / needs_review rows to a Feishu (Lark) Base table.
+# Needs the lark-cli tool with edit access to the Base. Uncomment and fill in to use
+# with --feishu-sync. Leave commented out if you don't use Feishu.
+# feishu:
+#   base_token: <YOUR_FEISHU_BASE_TOKEN>
+#   table_id: <YOUR_FEISHU_TABLE_ID>
+#   table_name: Image abuse report
+#   base_url: https://feishu.cn/base/<YOUR_FEISHU_BASE_TOKEN>?table=<YOUR_FEISHU_TABLE_ID>

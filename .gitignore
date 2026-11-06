@@ -1,0 +1,11 @@
+# your data and secrets — never commit
+.env
+*.json.key
+service-account*.json
+/monitor_config.yaml
+/products.yaml
+/images/
+/evidence/
+__pycache__/
+.venv/
+.DS_Store
