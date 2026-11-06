@@ -4,7 +4,7 @@
 
 [English](README.md) · **简体中文**
 
-![License: MIT](https://img.shields.io/badge/license-MIT-15803d) ![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-1f2937) ![Claude Code skill](https://img.shields.io/badge/Claude%20Code-skill-0e7490)
+![License: PolyForm Noncommercial](https://img.shields.io/badge/license-PolyForm%20Noncommercial-15803d) ![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-1f2937) ![Claude Code skill](https://img.shields.io/badge/Claude%20Code-skill-0e7490)
 
 既可以当 Python 命令行工具用，也可以作为 Claude Code（或其他读取 `SKILL.md` 的 AI agent）的 skill 使用。由一位亚马逊卖家为自己的店铺开发，[Luckee](https://luckee.ai/?utm_source=github&utm_medium=readme&utm_campaign=amazon-image-theft-monitor&utm_content=intro-zh) 整理后开源。
 
@@ -138,4 +138,7 @@ evidence/
 
 由 [Luckee](https://luckee.ai/?utm_source=github&utm_medium=readme&utm_campaign=amazon-image-theft-monitor&utm_content=credits-zh) 开发和维护。
 
-代码采用 [MIT 许可证](LICENSE)。本项目与 Amazon、Temu、eBay、Walmart、TikTok、Google 均无关联。
+个人、研究等非商业用途可免费使用，许可证为 [PolyForm Noncommercial 1.0.0](LICENSE)。商业用途（例如替客户运行、或用在付费产品和服务中）需要获得 Luckee 授权，请通过 [luckee.ai](https://luckee.ai/?utm_source=github&utm_medium=readme&utm_campaign=amazon-image-theft-monitor&utm_content=license-zh) 联系我们。
+v2.4.1 及之前的版本以 MIT 许可证发布，仍按 MIT 提供。
+
+本项目与 Amazon、Temu、eBay、Walmart、TikTok、Google 均无关联。
