@@ -23,6 +23,7 @@ import requests
 import tldextract
 import yaml
 from PIL import Image, UnidentifiedImageError
+from google.auth.exceptions import DefaultCredentialsError
 from google.cloud import vision
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
@@ -290,7 +291,15 @@ def web_detection_candidates(
     cfg: dict[str, Any],
     reference_gcs_uri: str | None = None,
 ) -> tuple[list[Candidate], list[PageMatch]]:
-    client = vision.ImageAnnotatorClient()
+    try:
+        client = vision.ImageAnnotatorClient()
+    except DefaultCredentialsError:
+        print(
+            "[ERROR] Google Cloud credentials not found. Set GOOGLE_APPLICATION_CREDENTIALS to the path of a "
+            "service account JSON key with Cloud Vision access. Setup guide: docs/google-cloud-setup.md",
+            file=sys.stderr,
+        )
+        raise SystemExit(2)
     candidates: list[Candidate] = []
     page_matches: list[PageMatch] = []
     refs = [reference_gcs_uri] if reference_gcs_uri else product.reference_images
@@ -466,7 +475,8 @@ def min_hash_distance(candidate_path: Path, ref_hashes: list[imagehash.ImageHash
     candidate_hash = compute_hash(candidate_path, kind)
     if candidate_hash is None or not ref_hashes:
         return None
-    return min(candidate_hash - ref_hash for ref_hash in ref_hashes)
+    # imagehash returns numpy integers; cast so the evidence log can be JSON-encoded.
+    return int(min(candidate_hash - ref_hash for ref_hash in ref_hashes))
 
 
 def local_similarity_decision(phash_distance: int | None, dhash_distance: int | None, cfg: dict[str, Any]) -> str:
@@ -1136,7 +1146,9 @@ def main() -> int:
             all_rows.extend(rows)
             all_pages.extend(pages)
     finally:
-        save_seen_cache(cache_path, seen)
+        # A dry run must not mark candidates as seen, or the real run that follows would skip them.
+        if not args.dry_run:
+            save_seen_cache(cache_path, seen)
 
     csv_path = Path(cfg.get("output", {}).get("report_csv", "evidence/report.csv"))
     pages_csv_path = Path(cfg.get("output", {}).get("page_matches_csv", "evidence/page_matches.csv"))
